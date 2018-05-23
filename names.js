@@ -81,3 +81,5 @@ const names = {
         female: ['Baggi', 'Emen', 'Engong', 'Kansif', 'Myev', 'Neega', 'Ovak', 'Ownka', 'Shautha', 'Sutha', 'Vola', 'Yevelda']
     }
 }
+
+module.exports = names;
