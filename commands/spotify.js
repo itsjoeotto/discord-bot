@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { token } = require('../config.json');
+const fs = require('fs');
 const data1 = require('../playlist/playlist-data-1.json');
 const data2 = require('../playlist/playlist-data-2.json');
 const data3 = require('../playlist/playlist-data-3.json');
@@ -26,24 +27,47 @@ var playlist = [
 
 var theWholeShebang = async function(channelId) {
     try {
-        messageId = '';
-        var url = `http://discord.com/api/channels/${channelId}/messages?limit=100`;
-        var list = [];
-        // var now = new Date().getMonth;
-        var result = await getMessages(url);
-        list = [...result];
-        messageId = list[0].id;
-        var beforeUrl = `http://discord.com/api/channels/${channelId}/messages?limit=100&before=${list[0].id}`
-        var result2 = await getMessages(beforeUrl);
-        var test = [...result2, ...list];
-        // console.log('RESULT 1', result.filter(b => b.content.includes('https://open.spotify.com/track')).map(c => c.id));
-        // console.log('RESULT 2', result2.filter(b => b.content.includes('https://open.spotify.com/track')).map(c => c.id));
-        var dates = list.map(x => x.timestamp);
-        console.log(test.length);
+        var result = await getCurrentMessages(channelId);
+        var result2 = await getHistoricalMessages(channelId, result[0]);
+        var test = [...result2, ...result];
+        
         var songsByUsers = getSongsByUser(test);
-        console.log('songsByUSers', songsByUsers);
+        fs.appendFile('songs-by-user.json', JSON.stringify(songsByUsers), err => {
+            if (err) throw err;
+            console.log('saved!');
+        })
     } catch (err) {
         
+    }
+}
+
+var getCurrentMessages = async function (channelId) {
+    try {
+        var url = `http://discord.com/api/channels/${channelId}/messages?limit=100`;
+        var response = await doMessageGet(url);
+        return response;
+    } catch (err) {
+        console.log('FUCK THIS ERROR', err);
+    }
+}
+
+var getHistoricalMessages = async function(channelId, startingMessage) {
+    try {
+        var holySnopesAList = [];
+        var messageId = startingMessage.id;
+        var date = startingMessage.timestamp;
+        var url = `http://discord.com/api/channels/${channelId}/messages?limit=100&before=${messageId}`;
+
+        for(;new Date(date) > new Date("2020-04-12T03:45:37.304000+00:00");) {
+            url = `http://discord.com/api/channels/${channelId}/messages?limit=100&before=${messageId}`
+            var blep = await doMessageGet(url);
+            holySnopesAList = [...blep, ...holySnopesAList];
+            messageId = blep[0].id;
+            date = blep[0].timestamp;
+        }
+        return holySnopesAList;
+    } catch (err) {
+        console.log('WRITE BETTER CODE!', err);
     }
 }
 
@@ -64,7 +88,7 @@ var getSongId = function(content) {
 } 
 
 var getSongsByUser = function(data) {
-    const users = data.reduce((acc, curr) => {
+    var users = data.reduce((acc, curr) => {
         if (curr.content.includes('https://open.spotify.com/track')) {
             const index = acc.findIndex(x => x.name === curr.author.username);
             if (index === -1) {
@@ -89,19 +113,14 @@ var getSongsByUser = function(data) {
         });
     });
 
-    var blep;
+    return users;
 }
 
 var doMessageGet = async function(url) {
     try {
+        let result = [];
         await axios.get(url, { headers : { authorization: `Bot ${token}`}})
             .then(res => {
-                // getSongsByUser(res.data);
-                // var dates = res.data.map(x => x.timestamp);
-                // console.log("DATES", dates.sort());
-                // var oldest = res.data.find(y => y.timestamp === dates[0]);
-                // console.log('OLDEST', oldest);
-                // console.log(res.data.length);
                 var sorted = res.data.sort((a, b) => {
                     return new Date(a.timestamp) - new Date(b.timestamp);
                 });
@@ -112,7 +131,7 @@ var doMessageGet = async function(url) {
             })
         return result;
     } catch (err) {
-        
+        console.log('SHIT! AN ERROR!')
     }
 }
 
